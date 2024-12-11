@@ -1,8 +1,13 @@
-from tqdm import tqdm
+from multiprocessing import Pool
 import numpy as np
+import time
+sign_dict = {"#":1, ".":0, "^":-1}
+start_time = time.perf_counter()
 map = []
 for line in open("input.txt", 'r'):
-    map.append([sign for sign in line.strip()])
+    map.append([sign_dict[sign] for sign in line.strip()])
+
+map = np.array(map)
 
 # Task 1
 max_y, max_x = len(map)-1, len(map[0])-1
@@ -12,33 +17,31 @@ dir_dict = {
     (1,0): np.array([0,-1], dtype=int),
     (0,-1): np.array([-1,0], dtype=int)
 }
-
+guard_path = []
 pos_array = np.zeros((max_y+1, max_x+1))
 # Find initial position
-org_pos = next((y,x) for y, row in enumerate(map) for x, elem in enumerate(row) if elem == '^')
+org_pos = next((y,x) for y, row in enumerate(map) for x, elem in enumerate(row) if elem == -1)
+map[*org_pos] = 0
 pos = np.array(org_pos, dtype=int)
 current_dir = np.array([-1,0], dtype=int)
 while True:
     y,x = pos
-    if y > max_y or x > max_x or np.any(pos < 0):
+    if not 0 <= y <= max_y and 0 <= x <= max_x:
         break
-    elif map[y][x] == '#':
+    elif map[*pos] == 1:
         pos = pos - current_dir
         current_dir = dir_dict[*current_dir]
     else:
-        pos_array[y][x] = 1
+        pos_array[*pos] = 1
+        if (y,x) not in guard_path and (y,x) != org_pos:
+            guard_path.append((y,x))
         pos = pos + current_dir
 
 
 print(int(np.sum(pos_array)))
-traversed_path = np.where(pos_array == 1)
 
 
 # Task 2
-
-pos_array = np.zeros((max_y+1, max_x+1, 4))
-current_dir = np.array([-1,0])
-total_loops = 0
 
 key_dict = {
     (-1,0): 0,
@@ -47,43 +50,39 @@ key_dict = {
     (0,-1): 3,
 }
 
+
 def check_bounds(pos, dir):
-    y,x = pos + dir
-    if y > max_y or x > max_x or np.any(pos < 0):
-        return False
-    return True
+    y, x = pos + dir
+    return 0 <= y <= max_y and 0 <= x <= max_x
 
-def step(pos, dir):
+def step(pos, dir, map):
     next_pos = pos + dir
-    y,x = next_pos
-    if map[y][x] == "#":
-        next_dir = dir_dict[*dir]
-        return pos, next_dir
-    return next_pos, dir
+    if map[*next_pos] == 1:
+        next_dir = dir_dict[tuple(dir)]
+        return pos, next_dir, False
+    return next_pos, dir, True
 
-def check_loop():
-    pos = np.array(org_pos)
-    pos_array = np.zeros((max_y+1, max_x+1, 4))
-    current_dir = np.array([-1,0])
-    while check_bounds(pos, current_dir):
-        y, x = pos
-        next_pos, next_dir = step(pos, current_dir)
-        dict_key = key_dict[*next_dir]
-        if pos_array[y,x,dict_key] == 1:
+org_pos = np.array(org_pos)
+org_dir = np.array([-1,0])
+def check_loop(rock_pos):
+    map_copy = map.copy()
+    map_copy[*rock_pos] = 1
+    current_pos, current_dir, direction_array = org_pos, org_dir, np.zeros((max_y, max_x, 4))
+    while check_bounds(current_pos, current_dir):
+        y, x = current_pos
+        next_pos, next_dir, moved = step(current_pos, current_dir, map_copy)
+        dict_key = key_dict[tuple(next_dir)]
+        if direction_array[y,x,dict_key]:
             return True
         else:
-            if not np.array_equal(next_pos, pos):
-                pos_array[y,x,dict_key] = 1
-                pos = next_pos
+            if moved:
+                direction_array[y,x,dict_key] = 1
+                current_pos = next_pos
             current_dir = next_dir
     return False
 
-for index in tqdm(list(zip(traversed_path[0], traversed_path[1]))):
-    y,x = index
-    if map[y][x] == "^":
-        continue
-    map[y][x] = "#"
-    total_loops += check_loop()
-    map[y][x] = "."
+if __name__ == '__main__':
+    with Pool(8) as p:
+        print(sum(p.map(check_loop, guard_path)))
+    print(time.perf_counter()-start_time)
 
-print(total_loops)
