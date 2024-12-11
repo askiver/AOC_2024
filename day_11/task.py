@@ -1,14 +1,9 @@
-from os import remove
 from pathlib import Path
-from tqdm import tqdm
 from functools import lru_cache
-import time
 
-start_time = time.perf_counter()
+stones = Path("input.txt").read_text().strip().split(" ")
 
-org_stones = Path("input.txt").read_text().strip()
-stones = org_stones.split(" ")
-
+@lru_cache(maxsize=None)
 def morph_stone(stone):
     length = len(stone)
     if length %2 == 0:
@@ -23,19 +18,9 @@ def recursive_stones(stone, depth):
     if not depth:
         return 1
     else:
-        morphed_stones = morph_stone(stone)
-        length = 0
-        for morphed_stone in morphed_stones:
-            length += recursive_stones(morphed_stone, depth - 1)
-        return length
+        return sum([recursive_stones(morphed, depth-1) for morphed in morph_stone(stone)])
 
 depths = (25,75)
 for depth in depths:
-    total_stones = 0
-    for stone in stones:
-        total_stones += recursive_stones(stone, depth)
+    total_stones = sum(recursive_stones(stone, depth) for stone in stones)
     print(total_stones)
-
-print(time.perf_counter()-start_time)
-
-
