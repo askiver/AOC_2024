@@ -3,7 +3,6 @@ from tqdm import tqdm
 
 disk = Path("input.txt").read_text()
 
-print(disk)
 puzzle = []
 # Create puzzle
 block_number = 0
@@ -42,7 +41,6 @@ def find_block_length(index, number):
             break
     return current_count
 
-print(puzzle)
 print(checksum)
 
 puzzle = []
@@ -56,9 +54,6 @@ for index, amount in enumerate(disk):
     else:
         for i in range(int(amount)):
             puzzle.append(-1)
-
-
-print(puzzle)
 
 for i in range(max(puzzle), 1, -1):
     index = puzzle.index(i)
@@ -87,8 +82,6 @@ for index, number in enumerate(puzzle):
         continue
     checksum += index * number
 
-#print(puzzle)
-#print(len(puzzle))
 print(checksum)
 
 
