@@ -1,49 +1,56 @@
 import re
-import numpy as np
-from scipy.optimize import linprog
 
 # Read and parse input data
 with open('input.txt') as f:
     data = f.read()
 
-pattern = re.compile(r'X[+=](\d+), Y[+=](\d+)')
-result = [tuple(tuple(map(int, match)) for match in pattern.findall(block))
-          for block in data.strip().split('\n\n') if len(pattern.findall(block)) == 3]
+# Parse the input data
+def parse_input(data):
+    pattern = re.compile(r'X[+=](\d+), Y[+=](\d+)')
+    return [
+        tuple(tuple(map(int, match)) for match in pattern.findall(block))
+        for block in data.strip().split('\n\n')
+        if len(pattern.findall(block)) == 3
+    ]
 
+def find_presses(button_A, button_B, answers):
+    ax, ay = button_A
+    bx, by = button_B
+    zx, zy = answers
+
+    A = (bx * zy - by * zx) / (bx * ay - ax * by)
+    B = (zx - ax * A) / bx
+
+    if 0 < A and 0 < B:
+        if int(A) == A and int(B) == B:
+            return 3*A + B
+
+    return 0
+
+
+result = parse_input(data)
 big_number = 10000000000000
-
-# Objective: Minimize total button presses
-lowest_token = 0
-lowest_big_token = 0
-
+token_count = 0
+big_tokens = 0
 for results in result:
-    # Extract coefficients and target values
-    X_coefficients = [results[0][0], results[1][0]]
-    Y_coefficients = [results[0][1], results[1][1]]
-    coefficients = np.array([X_coefficients, Y_coefficients])
-    answers = np.array([results[2][0], results[2][1]])
+    # Example equations
+    # 94A + 22B = 8400
+    # 34A + 67B = 5400
+    # B = (8400 - 94A) / 22
+    # 34A + 67((8400-94A)/22) = 5400
+    # 22*34A + 67*(8400-94A) = 22*5400
+    # A(22*34-94*67) = 22*5400-67*8400
+    # A = (22*5400-67*8400) / (22*34-94*67)
+    # A = (bx*zy - by*zx) / (bx*ay-ax*by)
+    # B = (8400 - 94A) / 22
+    # B = (zx - ax*A) / bx
 
-    # Solve for the small calculation using linprog
-    c = np.array([3, 1])  # Coefficients for the objective function
-    bounds = [(0, None), (0, None)]  # Non-negative bounds for variables
-    res = linprog(c, A_eq=coefficients, b_eq=answers, bounds=bounds, method='highs')
+    button_A, button_B, answers = results
 
-    if res.success:
-        a_press, b_press = np.ceil(res.x).astype(int)
-        lowest_token += 3 * a_press + b_press
-    else:
-        print("No solution for small calculation.")
+    token_count += find_presses(button_A, button_B, answers)
 
-    # Solve for the big calculation using linprog
-    answers_big = answers + big_number
-    res_big = linprog(c, A_eq=coefficients, b_eq=answers_big, bounds=bounds, method='highs')
+    answers = (answers[0] + big_number, answers[1] + big_number)
+    big_tokens += find_presses(button_A, button_B, answers)
 
-    if res_big.success:
-        a_press_big, b_press_big = np.ceil(res_big.x).astype(int)
-        lowest_big_token += 3 * a_press_big + b_press_big
-    else:
-        print("No solution for big calculation.")
-
-# Print results
-print(lowest_token)
-print(lowest_big_token)
+print(token_count)
+print(big_tokens)
