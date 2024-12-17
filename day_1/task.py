@@ -1,6 +1,7 @@
 # Task 1
 left_list = []
 right_list = []
+
 for line in open("input.txt",'r'):
     numbers = line.split("   ")
     left_list.append(int(numbers[0]))
