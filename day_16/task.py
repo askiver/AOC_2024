@@ -3,6 +3,8 @@ import heapq
 import numpy as np
 import sys
 
+
+
 sys.setrecursionlimit(10**6)
 
 
@@ -17,28 +19,37 @@ dir_dict = {(1,0): [(1,0), (0,-1), (0,1)],
             (-1,0): [(-1,0), (0,1), (0,-1)],
             (0,-1): [(0,-1), (-1,0), (1,0)]}
 
-"""
-def traverse_maze(pos, current_direction, score, best_score, visited_places):
-    if pos in visited_places or score > best_score:
-        return math.inf
+best_score = 10**5
 
-    visited_places.add(pos)
-    y,x = pos
-    if maze[y][x] == "E":
-        visited_places.remove(pos)
+def traverse_maze(pos, current_direction, score):
+    global best_score
+
+    if score > best_score:
+        return np.inf
+
+    if pos==end_pos:
         return score
 
-    best_path_score = math.inf
+    return_score = np.inf
+    heuristics = []
+    args = []
+    y,x = pos
     for direction in dir_dict[current_direction]:
         new_score = score + 1 if direction == current_direction else score + 1001
         dy,dx = direction
         new_pos = (y+dy, x+dx)
         if maze[new_pos[0]][new_pos[1]] != "#":
-            best_path_score = min(best_path_score, traverse_maze(new_pos, direction, new_score, best_path_score, visited_places))
+            args.append((new_pos, direction, new_score))
+            heuristics.append(heuristic(new_pos))
+    for index, value in sorted(enumerate(heuristics), key=lambda x: x[1]):
+        new_pos, direction, new_score = args[index]
+        score_result = traverse_maze(new_pos, direction, new_score)
+        if score_result <= best_score:
+            best_score = score_result
+            score_array[*pos] = score if direction == current_direction else score + 1000
+            return_score = score_result
+    return return_score
 
-    visited_places.remove(pos)
-    return best_path_score
-"""
 def heuristic(pos):
     start_y, start_x = pos
     end_y, end_x = end_pos
@@ -46,53 +57,63 @@ def heuristic(pos):
 
 score_array = np.zeros((len(maze), len(maze[0])))
 score_array.fill(np.inf)
-best_score = np.inf
-#print(traverse_maze(start_pos, (0,1), 0, math.inf, set()))
+score_array[*start_pos] = 0
+
 priority_queue = []
 heapq.heappush(priority_queue, (np.inf, start_pos, (0,1), 0))
-i = 0
+"""
 while priority_queue:
-    i+= 1
-    if i % 10000 == 0:
-        print(len(priority_queue))
 
     heuristic_score, pos, current_direction, score =heapq.heappop(priority_queue)
     if score > best_score or score > score_array[*pos]:
         continue
 
-    y, x = pos
-    if maze[y][x] == "E":
+    if pos == end_pos:
         best_score = min(best_score, score)
         continue
+
+    y, x = pos
 
     for direction in dir_dict[current_direction]:
         new_score = score + 1 if direction == current_direction else score + 1001
         dy, dx = direction
         new_pos = (y + dy, x + dx)
 
-        if maze[new_pos[0]][new_pos[1]] != "#" and score_array[*new_pos] > new_score:
+        if maze[new_pos[0]][new_pos[1]] != "#" and score_array[*new_pos] >= new_score:
             score_array[*new_pos] = new_score
             heapq.heappush(priority_queue,(new_score + heuristic(new_pos), new_pos, direction, new_score))
 
-
+"""
+print(traverse_maze(start_pos, (0,1), 0))
 print(best_score)
 
 # Task 2
+travel_array = np.zeros((len(maze), len(maze[0])))
+def find_best_neighbour(pos, score):
+    y,x = pos
+    for direction in directions:
+        dy,dx = direction
+        neighbour = y+dy, x+dx
+        if score_array[*neighbour] == score:
+            return neighbour
+
 
 def find_num_tiles(pos):
+    travel_array[*pos] = 1
     if pos == start_pos:
-        return 1
+        return
+    elif pos == end_pos:
+        find_num_tiles(find_best_neighbour(end_pos, best_score-1))
+
     else:
-        best_neighbour = None
-        best_score = np.inf
+        score = score_array[*pos]
         y, x = pos
         for direction in directions:
             dy,dx = direction
             neighbour = y+dy, x+dx
-            if score_array[*neighbour] < best_score:
-                best_score = score_array[*neighbour]
-                best_neighbour = neighbour
+            if score_array[*neighbour] < score:
+                find_num_tiles(neighbour)
 
-        return 1 + find_num_tiles(best_neighbour)
+find_num_tiles(end_pos)
 
-print(find_num_tiles(end_pos))
+print(np.sum(travel_array))
