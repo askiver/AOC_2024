@@ -1,10 +1,7 @@
 from pathlib import Path
-import multiprocessing
 
 program = Path("input.txt").read_text()
-
 current_register = "A"
-
 registers = {}
 
 for line in program.splitlines():
@@ -16,15 +13,11 @@ for line in program.splitlines():
         _, instructions = line.split(":")
         instructions = [int(instruction) for instruction in instructions.strip() if instruction.isdigit()]
 
-def is_strict_int(value):
-    return isinstance(value, int) and not isinstance(value, bool)
-
 def combo_operands(number):
     if number < 4:
         return number
     else:
-        character = chr(65 + (number-4))
-        return registers.get(character)
+        return registers.get(chr(ord("A")+ (number%4)))
 
 def adv(operand):
     registers["A"] =  registers.get("A") // 2**combo_operands(operand)
@@ -63,7 +56,7 @@ while instruction_pointer < len(instructions)-1:
     current_function = opcode_dict.get(opcode)
     current_output = current_function(operand)
 
-    if is_strict_int(current_output):
+    if opcode == 5:
         output.append(current_output)
 
     if opcode != 3 or current_output != True:
@@ -72,51 +65,6 @@ while instruction_pointer < len(instructions)-1:
 print(output)
 
 # Task 2
-register_A_value = 8**14 # 8**15 should be the max possible value
-"""
-while output != instructions:
-    if register_A_value % 1000000 == 0:
-        print(register_A_value)
-    register_A_value += 1
-    output = []
-    instruction_pointer = 0
-    registers["A"] = register_A_value
-    while instruction_pointer < len(instructions) - 1:
-        opcode, operand = instructions[instruction_pointer], instructions[instruction_pointer + 1]
-        current_function = opcode_dict.get(opcode)
-        current_output = current_function(operand)
-
-        if is_strict_int(current_output):
-            output.append(current_output)
-            if output != instructions[:len(output)]:
-                break
-
-        if opcode != 3 or current_output != True:
-            instruction_pointer += 2
-
-print(register_A_value)
-
-"""
-def check_equation(result, A):
-    #(((A % 8) XOR 1) XOR 5) XOR (A // 2 ^ ((A % 8) XOR 1)) % 8
-    x1 = ((A%8) ^ 1) ^ 5
-    x2 = (A // 2) ** ((A%8)^1)
-
-    return result == (x1 ^ x2) % 8
-
-def verify_instructions(A):
-    for instruction in instructions:
-        if not check_equation(instruction, A):
-            return False
-        A = A // 8
-    return True
-
-for A in range(8**14, 8**15):
-    if A % 10**6 == 0:
-        print(A)
-    if verify_instructions(A):
-        print(A)
-        break
 
 # What happens in the first go:
 # 1: B = A % 8
@@ -127,17 +75,48 @@ for A in range(8**14, 8**15):
 # 6: 2 = B % 8
 # 7: A = A // 8
 
-# We can find the possible range of A using the last condition
-# A // 8^14 > 0
-# A // 8^15 = 0
-
-# 8^14 < A < 8^15
-
-
 # Let's try to solve the equation above
 # B = (A%8) XOR 1
 # C = A // 2^((A%8) XOR 1)
 # B = ((A%8) XOR 1) XOR 5
 # B = (((A%8) XOR 1) XOR 5) XOR (A // 2^((A%8) XOR 1))
 # 2 = (((A%8) XOR 1) XOR 5) XOR (A // 2^((A%8) XOR 1)) % 8
-# 8k + 2 = ((A%8) XOR 1) XOR 5) XOR (A // 2^((A%8) XOR 1)
+# 010 = (((A%8) XOR 1) XOR 5) XOR (A // 2^((A%8) XOR 1)) % 8
+# 0b010 = (((A & 0b111) XOR 0b001) XOR 0b101) XOR (A >> (A & (0b111) XOR 0b001)) & 0b111
+# 0b010 = ((A & 0b111) XOR 0b100) XOR(A >> (A & (0b111) XOR 0b001))) & 0b111
+
+# We solve this for all the instructions, starting with the last ones,
+# So we can guarantee that we find the lowest possible answer
+
+
+def get_msb(number, msb_count=3):
+    if number.bit_length() <= msb_count:
+        return number
+    return number >> (number.bit_length() - msb_count)
+
+def get_lsb(number, n_bits):
+    mask = (1 << n_bits) - 1
+    return number & mask
+
+def check_instructions(result, A):
+    lsb3 = A & 0b111
+    t1 = (lsb3 ^ 0b001) ^ 0b101
+    t2 = lsb3 ^ 0b001
+    t3 = (A >> t2)
+    return (t1 ^ t3) & 0b111 == result
+
+def solve_A(current_step, current_number):
+    if current_step == len(instructions):
+        return current_number
+
+    solution = instructions[-1 - current_step]
+    for addition in range(0b1000):
+        A = (current_number << 3) | addition
+        if check_instructions(solution, A):
+            answer = solve_A(current_step + 1, A)
+            if answer is not None:
+                return answer
+    return None
+
+register_a = solve_A(0, 0b0)
+print(register_a)
