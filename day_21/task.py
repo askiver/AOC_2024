@@ -1,8 +1,7 @@
 from pathlib import Path
-from tqdm import tqdm
 from functools import lru_cache
 
-codes = [code for code in Path("input.txt").read_text().splitlines()]
+codes = Path("input.txt").read_text().splitlines()
 
 directions = {(-1,0): "^", (0,1): ">", (1,0): "v", (0,-1): "<"}
 directional_keypad = {"^": (0, 1), "A": (0, 2), "<": (1, 0), "v": (1, 1), ">": (1, 2)}
@@ -25,17 +24,18 @@ def find_instructions(keypad, code, pos=None):
         positions = keypad.values()
         while dy or dx:
             if dx < 0 and (y, x+dx) in positions:
-                for x_change in range(abs(dx)):
+                while dx:
                     x += dx_sign
                     dx -= dx_sign
                     commands.append(directions.get((0, dx_sign)))
             elif dy and (y+dy, x) in positions:
-                for y_change in range(abs(dy)):
+                while dy:
                     y += dy_sign
                     dy -= dy_sign
                     commands.append(directions.get((dy_sign, 0)))
+
             else:
-                for x_change in range(abs(dx)):
+                while dx:
                     x += dx_sign
                     dx -= dx_sign
                     commands.append(directions.get((0, dx_sign)))
@@ -49,27 +49,19 @@ def find_instructions(keypad, code, pos=None):
 @lru_cache(maxsize=None)
 def find_robot_instructions(depth, max_depth, move, pos):
     if depth == max_depth:
-        return move
-    elif depth == 0:
-        moves = find_instructions(directional_keypad, [move], pos)
-    else:
-        moves = find_instructions(directional_keypad, [move], None)
-    robot_moves = []
+        return 1
+
+    moves = find_instructions(directional_keypad, [move], pos)
+    last_move = None
+    sequence_length = 0
     for move in moves:
-        robot_moves.extend(find_robot_instructions(depth+1, max_depth, move, None))
+        sequence_length += find_robot_instructions(depth+1, max_depth, move, last_move)
+        last_move = move
 
-    """
-    move = find_instructions(directional_keypad, [move], pos)
-    for _ in range(depth-1):
-        move = find_instructions(directional_keypad, move)
-    """
-    return robot_moves
+    return sequence_length
 
 
-
-
-def complexity(full_code, original_code):
-    sequence_length = len(full_code)
+def complexity(sequence_length, original_code):
     numerical_score = int(original_code[:-1])
     return sequence_length * numerical_score
 
@@ -79,11 +71,11 @@ for depth in num_robots:
     for original_code in codes:
         last_move = "A"
         code = find_instructions(numeric_keypad, original_code)
-        moves = []
-        for move in tqdm(code):
-            moves.extend(find_robot_instructions(0, depth, move, last_move))
+        sequence_length = 0
+        for move in code:
+            sequence_length += find_robot_instructions(0, depth, move, last_move)
             last_move = move
 
-        complexity_score += complexity(moves, original_code)
+        complexity_score += complexity(sequence_length, original_code)
 
     print(complexity_score)
