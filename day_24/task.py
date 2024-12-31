@@ -61,51 +61,9 @@ if "z45" not in input_dict.keys():
     input_dict["z45"] = False
 #input_dict["z06"] = False
 
-def generate_valid_combinations(pairs):
-    for combination in itertools.combinations(pairs, 4):
-        # Flatten the list of pairs and check if all numbers are unique
-        used_numbers = set(itertools.chain(*combination))
-        if len(used_numbers) == 8:
-            yield combination
+print(input_dict)
 
-pairs = itertools.combinations(list(range(len(all_operations))), 2)
 
-valid_combinations = generate_valid_combinations(pairs)
-
-correct_combination = None
-for combination in tqdm(valid_combinations):
-    local_input_dict = input_dict.copy()
-    local_operations = all_operations.copy()
-    for idx_1, idx_2 in combination:
-        _,_,_,output1 = local_operations[idx_1]
-        _,_,_,output2 = local_operations[idx_2]
-        local_operations[idx_1][-1] = output2
-        local_operations[idx_2][-1] = output1
-
-    correct_pairs= True
-    while local_operations:
-        input1, input2, operation, output = local_operations.pop(0)
-        if input1 in local_input_dict and input2 in local_input_dict:
-            result = operation(local_input_dict.get(input1), local_input_dict.get(input2))
-            if output.startswith("z") and local_input_dict[output] != result:
-                correct_pairs = False
-                break
-            else:
-                local_input_dict[output] = result
-        else:
-            local_operations.append([input1, input2, operation, output])
-
-    if correct_pairs:
-        correct_combination = combination
-        break
-
-swapped_output_idx = [item for pair in correct_combination for item in pair]
-swapped_outputs = []
-for swap_idx in swapped_output_idx:
-    _,_,_,output = all_operations[swap_idx]
-    swapped_outputs.append(output)
-
-print(sorted(swapped_outputs))
 
 
 

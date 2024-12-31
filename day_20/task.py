@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 import numpy as np
 from collections import defaultdict
@@ -11,60 +12,79 @@ max_y_index, max_x_index = len(map)-1, len(map[0])-1
 
 directions = [(-1,0), (0,1), (1,0), (0,-1)]
 
-def heuristic(pos):
-    y,x = pos
-    end_y, end_x = end_pos
-    return np.sqrt((y-end_y)**2 + (x-end_x)**2)
-
 def check_bounds(y,x):
     return 0 < y < max_y_index and 0 < x < max_x_index
 
 steps_array = np.full((max_y_index+1, max_x_index+1), fill_value=np.inf)
 
-def update_steps_array(visited):
-    for idx, pos in enumerate(visited[::-1]):
-        steps_array[*pos] = min(steps_array[*pos], idx+1)
+pos = end_pos
+visited = []
+steps = 0
+while pos != start_pos:
+    steps_array[*pos] = steps
+    visited.append(pos)
+    y,x = pos
+    steps += 1
+    for direction in directions:
+        dy, dx = direction
+        new_y, new_x = y+dy, x+dx
+        new_pos = new_y, new_x
+
+        if new_pos not in visited and map[new_y][new_x] != "#":
+            pos = new_pos
+            break
+
+max_steps = steps
+
+#cheat_dict = defaultdict(set)
+
+@lru_cache(maxsize=None)
+def find_cheats(current_pos, steps, cheat_steps, time_to_save):
+    y,x = current_pos
 
 
-def find_path(cheat_steps, time_to_beat):
-    shortest_path = np.inf
-    possible_paths = 0
-    stack = []
-    cheat_dict = defaultdict(set)
-    stack.append((start_pos, 0, [], cheat_steps))
-    i = 0
+    distance_from_goal = abs(y - end_pos[0]) + abs(x - end_pos[1])
+    if distance_from_goal + steps > max_steps - time_to_save:
+        return set()
 
-    while stack:
-        pos, steps, visited, cheat_steps_remaining = stack.pop()
-        if pos == end_pos:
-            possible_paths += 1
-            shortest_path = min(shortest_path, steps)
-            if not cheat_steps:
-                update_steps_array(visited)
-        elif (steps + steps_array[*pos]) < time_to_beat:
-            possible_paths += 1
-            shortest_path = min(shortest_path, steps + steps_array[*pos])
-        elif steps_array[*pos] != np.inf and not cheat_steps and (steps + steps_array[*pos]) > time_to_beat:
-            continue
-        elif pos in visited or steps > time_to_beat:
-            continue
-        else:
-            y,x = pos
-            visit_copy = visited.copy()
-            visit_copy.append(pos)
-            for direction in directions:
-                dy, dx = direction
-                new_y, new_x = y + dy, x + dx
-                if map[new_y][new_x] == "#":
-                    if cheat and check_bounds(new_y, new_x) and map[new_y + dy][new_x + dx] != "#":
-                        stack.append(((new_y+dy, new_x+dx), steps+2, visit_copy, False))
-                else:
-                    stack.append(((new_y,new_x), steps+1, visit_copy, cheat))
-    return shortest_path, possible_paths
+    num_shorcuts = set()
 
-fastest_standard_path, _ = find_path(0, np.inf)
-print(fastest_standard_path)
+    if map[y][x] != "#":
+        if steps + steps_array[*current_pos] <= max_steps - time_to_save:
+            num_shorcuts.add(current_pos)
 
-fastest_standard_path, number_of_fast_paths = find_path(2, fastest_standard_path-20)
+    if cheat_steps:
+        for direction in directions:
+            dy,dx = direction
+            new_pos = y+dy, x+dx
+            if check_bounds(new_pos[0], new_pos[1]): # new_pos not in visited and
+                new_shortcuts = find_cheats(new_pos, steps+1, cheat_steps-1, time_to_save)
+                num_shorcuts.update(new_shortcuts)
 
-print(fastest_standard_path, number_of_fast_paths)
+    return num_shorcuts
+
+
+pos = start_pos
+visited = set()
+steps = 0
+num_cheats = 0
+time_to_save = 100
+cheat_steps = 20
+while pos != end_pos:
+    print(pos)
+    num_cheats += len(find_cheats(pos, steps, cheat_steps, time_to_save))
+
+    steps += 1
+    y, x = pos
+    visited.add(pos)
+
+    for direction in directions:
+        dy, dx = direction
+        new_y, new_x = y + dy, x + dx
+        new_pos = new_y, new_x
+
+        if new_pos not in visited and map[new_y][new_x] != "#":
+            pos = new_pos
+            break
+
+print(num_cheats) # 1014683
